@@ -350,7 +350,7 @@ class AdminRenderer {
 										echo (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}ai_employees WHERE department_id = %d", $dept['id'] ) );
 									?></span>
 									<button class="nexus-delete-dept text-xs text-red-500/50 hover:text-red-500 transition-all" data-id="<?php echo (int) $dept['id']; ?>">Delete Dept</button>
-									<button class="text-xs text-accent hover:underline font-bold">Manage Team</button>
+									<a href="<?php echo admin_url( 'admin.php?page=nexus-ai-workforce-employees' ); ?>" class="text-xs text-accent hover:underline font-bold">Manage Team</a>
 								</div>
 							</div>
 						<?php endforeach; ?>
@@ -524,6 +524,19 @@ class AdminRenderer {
 								<div>
 									<label class="block text-sm font-medium text-gray-400 mb-2">Professional Position</label>
 									<input type="text" name="position" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" placeholder="e.g. CMO, Full Stack Developer">
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-400 mb-2">Assign Department</label>
+									<select name="department_id" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]">
+										<option value="0">-- No Department (Global) --</option>
+										<?php
+										global $wpdb;
+										$depts_list = $wpdb->get_results( "SELECT id, name FROM {$wpdb->prefix}ai_departments ORDER BY name ASC", ARRAY_A ) ?: [];
+										foreach ( $depts_list as $d ) {
+											echo '<option value="' . (int) $d['id'] . '">' . esc_html( $d['name'] ) . '</option>';
+										}
+										?>
+									</select>
 								</div>
 							</div>
 						</div>

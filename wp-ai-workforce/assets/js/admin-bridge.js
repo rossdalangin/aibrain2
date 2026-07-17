@@ -669,12 +669,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (startMeetingBtn) {
         startMeetingBtn.addEventListener('click', function() {
             const invitees = Array.from(document.querySelectorAll('.nexus-meeting-invitee:checked')).map(cb => cb.value);
-            const agenda = document.getElementById('nexus-meeting-agenda').value;
-            if (invitees.length === 0 || !agenda) return;
+            const agendaVal = document.getElementById('nexus-meeting-agenda') ? document.getElementById('nexus-meeting-agenda').value : '';
+
+            if (invitees.length === 0) {
+                showToast('Please select at least one participant first.', 'error');
+                return;
+            }
+            if (!agendaVal) {
+                showToast('Please enter a strategic agenda first.', 'error');
+                return;
+            }
+
             document.getElementById('nexus-meeting-transcript').innerHTML = '<p class="text-accent italic">Strategic Session Initialized...</p>';
             document.getElementById('nexus-meeting-summarize')?.classList.add('hidden');
             meetingPaused = false;
-            runMeetingRound(invitees, agenda);
+            runMeetingRound(invitees, agendaVal);
         });
     }
 
@@ -830,10 +839,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Quick select grid card handler
     document.addEventListener('click', function(e) {
         const card = e.target.closest('.nexus-playground-quick-card');
-        if (card && playgroundAgentSelect) {
+        const selectEl = document.getElementById('nexus-playground-agent-select');
+        if (card && selectEl) {
             const agentId = card.dataset.id;
-            playgroundAgentSelect.value = agentId;
-            playgroundAgentSelect.dispatchEvent(new Event('change'));
+            selectEl.value = agentId;
+            selectEl.dispatchEvent(new Event('change'));
             showToast('Expert selected. Profile loaded below.');
         }
     });
@@ -872,8 +882,13 @@ document.addEventListener('DOMContentLoaded', function() {
         let currentConversationId = 0;
         playgroundSendBtn.addEventListener('click', function() {
             const input = document.getElementById('nexus-playground-input');
-            const agentId = playgroundAgentSelect.value;
-            if (!agentId || !input.value.trim()) return;
+            const selectEl = document.getElementById('nexus-playground-agent-select');
+            const agentId = selectEl ? selectEl.value : '';
+            if (!agentId) {
+                showToast('Please select an agent first.', 'error');
+                return;
+            }
+            if (!input.value.trim()) return;
 
             const chatContainer = document.getElementById('nexus-playground-chat');
             const messageText = input.value.trim();
