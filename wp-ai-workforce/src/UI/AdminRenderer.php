@@ -329,6 +329,22 @@ class AdminRenderer {
 							<div class="glass-panel p-6 rounded-2xl border border-nexus-border glass-card-hover">
 								<h3 class="text-xl font-bold text-accent mb-2"><?php echo esc_html( $dept['name'] ); ?></h3>
 								<p class="text-sm text-gray-300 mb-4"><?php echo esc_html( $dept['description'] ); ?></p>
+
+								<!-- Department Team Listing -->
+								<div class="mt-4 p-4 rounded-xl bg-nexus-elevated/40 border border-white/5 space-y-2 text-xs">
+									<p class="font-bold text-[#1e293b] text-[10px] uppercase tracking-wider mb-2">Department Team:</p>
+									<?php
+									$dept_agents = $wpdb->get_results( $wpdb->prepare( "SELECT name, position FROM {$wpdb->prefix}ai_employees WHERE department_id = %d AND is_active = 1", $dept['id'] ), ARRAY_A ) ?: [];
+									if ( ! empty( $dept_agents ) ) {
+										foreach ( $dept_agents as $da ) {
+											echo '<p class="text-gray-400">• <span class="font-bold text-accent">' . esc_html( $da['name'] ) . '</span> (' . esc_html( $da['position'] ) . ')</p>';
+										}
+									} else {
+										echo '<p class="italic text-gray-500 opacity-60">No agents assigned.</p>';
+									}
+									?>
+								</div>
+
 								<div class="flex justify-between items-center mt-6 pt-4 border-t border-nexus-border/30">
 									<span class="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Active Agents: <?php
 										echo (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}ai_employees WHERE department_id = %d", $dept['id'] ) );
@@ -1272,7 +1288,11 @@ class AdminRenderer {
 				<!-- Meeting Controls Sidebar -->
 				<div class="lg:col-span-1 space-y-8">
 					<div class="glass-panel p-6 rounded-2xl border border-nexus-border dept-exec">
-						<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Invite Participants</h3>
+						<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Invite Participants</h3>
+						<div class="flex gap-2 mb-4">
+							<button type="button" id="nexus-meeting-select-all" class="text-[9px] bg-accent/20 text-accent px-3 py-1 rounded border border-accent/20 hover:bg-accent hover:text-black font-bold uppercase transition-all">Select All</button>
+							<button type="button" id="nexus-meeting-select-none" class="text-[9px] bg-nexus-elevated text-gray-400 px-3 py-1 rounded border border-nexus-border hover:text-[#1e293b] font-bold uppercase transition-all">Clear All</button>
+						</div>
 						<div class="space-y-3">
 							<?php foreach ( $agents as $agent ) : ?>
 								<label class="flex items-center gap-3 p-4 rounded-xl bg-nexus-elevated border border-nexus-border hover:border-accent cursor-pointer transition-all group">
@@ -1288,6 +1308,11 @@ class AdminRenderer {
 
 					<div class="glass-panel p-6 rounded-2xl border border-nexus-border">
 						<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Strategic Agenda</h3>
+						<div class="flex flex-wrap gap-2 mb-4">
+							<button type="button" class="nexus-meeting-preset text-[8px] bg-nexus-elevated border border-nexus-border text-gray-400 hover:text-accent hover:border-accent p-2 rounded transition-all font-bold" data-agenda="ROI Audit: Review current token usage, monthly cost efficiency, and suggest automatic prompt optimization paths to maximize operational labor savings.">ROI Audit</button>
+							<button type="button" class="nexus-meeting-preset text-[8px] bg-nexus-elevated border border-nexus-border text-gray-400 hover:text-accent hover:border-accent p-2 rounded transition-all font-bold" data-agenda="Marketing Storm: Brainstorm high-converting landing page headlines and ad copies targeting enterprise decision makers.">Marketing Storm</button>
+							<button type="button" class="nexus-meeting-preset text-[8px] bg-nexus-elevated border border-nexus-border text-gray-400 hover:text-accent hover:border-accent p-2 rounded transition-all font-bold" data-agenda="Technical Review: Assess technical debt, plugin architecture scalability, and devise a plan to implement recursive document chunking in the RAG Engine.">Technical Review</button>
+						</div>
 						<textarea id="nexus-meeting-agenda" class="w-full h-40 bg-nexus-elevated border border-nexus-border rounded-xl p-4 text-[#1e293b] text-sm outline-none focus:border-accent" placeholder="Enter objective..."></textarea>
 					</div>
 				</div>
@@ -1737,6 +1762,31 @@ class AdminRenderer {
 				<h1 class="text-5xl font-black text-[#1e293b] text-gradient-vibrant leading-tight">Expert Conversation</h1>
 				<p class="text-gray-400 mt-3 max-w-2xl text-lg leading-relaxed">Select any active agent or specialist. Chat with them to observe their capabilities, persona, strategic KPI goals, and reasoning processes.</p>
 			</div>
+
+			<!-- Quick Select Grid -->
+			<?php if ( ! empty( $agents ) ) : ?>
+				<div class="mb-8">
+					<p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Quick-Select Active Experts:</p>
+					<div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
+						<?php
+						$count = 0;
+						foreach ( $agents as $agent ) {
+							if ( $count >= 4 ) break;
+							?>
+							<div class="nexus-playground-quick-card glass-panel p-4 rounded-xl border border-nexus-border hover:border-accent cursor-pointer transition-all flex flex-col justify-between" data-id="<?php echo (int) $agent['id']; ?>">
+								<div>
+									<p class="font-bold text-sm text-accent"><?php echo esc_html( $agent['name'] ); ?></p>
+									<p class="text-[10px] text-gray-400 uppercase mt-1"><?php echo esc_html( $agent['position'] ); ?></p>
+								</div>
+								<span class="text-[9px] text-[#1e293b]/50 mt-4 text-right">Consult →</span>
+							</div>
+							<?php
+							$count++;
+						}
+						?>
+					</div>
+				</div>
+			<?php endif; ?>
 
 			<!-- Select Dropdown -->
 			<div class="glass-panel p-6 rounded-2xl border border-nexus-border mb-10 max-w-4xl">

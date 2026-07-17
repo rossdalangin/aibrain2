@@ -571,6 +571,27 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('Initializing secure client portal environment...');
         }
 
+        // --- Collaboration Hub Select Toggle & Presets ---
+        if (e.target.closest('#nexus-meeting-select-all')) {
+            document.querySelectorAll('.nexus-meeting-invitee').forEach(cb => cb.checked = true);
+            showToast('All active AI executives selected.');
+        }
+
+        if (e.target.closest('#nexus-meeting-select-none')) {
+            document.querySelectorAll('.nexus-meeting-invitee').forEach(cb => cb.checked = false);
+            showToast('Participants list cleared.');
+        }
+
+        const presetBtn = e.target.closest('.nexus-meeting-preset');
+        if (presetBtn) {
+            const agendaText = presetBtn.dataset.agenda;
+            const agendaTextarea = document.getElementById('nexus-meeting-agenda');
+            if (agendaTextarea) {
+                agendaTextarea.value = agendaText;
+                showToast('Strategic agenda populated with preset.');
+            }
+        }
+
         const downloadTraceBtn = e.target.closest('#nexus-download-trace');
         if (downloadTraceBtn) {
             const logContent = document.getElementById('nexus-workflow-log').innerText;
@@ -805,6 +826,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- 12. Agent Playground ---
     const playgroundAgentSelect = document.getElementById('nexus-playground-agent-select');
+
+    // Quick select grid card handler
+    document.addEventListener('click', function(e) {
+        const card = e.target.closest('.nexus-playground-quick-card');
+        if (card && playgroundAgentSelect) {
+            const agentId = card.dataset.id;
+            playgroundAgentSelect.value = agentId;
+            playgroundAgentSelect.dispatchEvent(new Event('change'));
+            showToast('Expert selected. Profile loaded below.');
+        }
+    });
+
     if (playgroundAgentSelect) {
         playgroundAgentSelect.addEventListener('change', function() {
             const agentId = playgroundAgentSelect.value;
