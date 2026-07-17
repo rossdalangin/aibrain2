@@ -663,51 +663,52 @@ class AdminRenderer {
 					<h2 class="text-xl font-semibold mb-6 text-accent">Global AI Engines</h2>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">OpenAI API Key</label>
-							<input type="password" name="openai_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-...">
+							<input type="password" name="openai_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'openai_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-...">
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Anthropic API Key</label>
-							<input type="password" name="claude_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-ant-...">
+							<input type="password" name="claude_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'claude_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-ant-...">
 						</div>
 						<div class="dept-marketing p-4 rounded-xl border border-nexus-blue/10">
 							<label class="block text-sm font-bold text-[#1e293b] mb-2 flex items-center gap-2">
 								<svg class="w-4 h-4 text-nexus-blue" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
 								Google Gemini Key
 							</label>
-							<input type="password" name="gemini_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-nexus-blue outline-none" placeholder="AIza...">
+							<input type="password" name="gemini_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-nexus-blue outline-none" value="<?php echo ! empty( $this->settings->get( 'gemini_api_key' ) ) ? '********' : ''; ?>" placeholder="AIza...">
 							<p class="text-[9px] text-gray-500 mt-2">Required for Gemini 1.5 Pro/Flash integration.</p>
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">OpenRouter API Key</label>
-							<input type="password" name="openrouter_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-or-...">
+							<input type="password" name="openrouter_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'openrouter_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-or-...">
 						</div>
 						<div class="grid grid-cols-2 gap-4">
 							<div>
 								<label class="block text-sm font-medium text-gray-400 mb-2">DeepSeek Key</label>
-								<input type="password" name="deepseek_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-...">
+								<input type="password" name="deepseek_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'deepseek_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-...">
 							</div>
 							<div>
 								<label class="block text-sm font-medium text-gray-400 mb-2">Mistral Key</label>
-								<input type="password" name="mistral_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-...">
+								<input type="password" name="mistral_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'mistral_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-...">
 							</div>
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Global Default Model</label>
 							<select name="default_model" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] outline-none focus:border-accent">
+								<?php $current_model = $this->settings->get( 'default_model', 'gpt-4o' ); ?>
 								<optgroup label="High Reasoning">
-									<option value="gpt-4o">OpenAI GPT-4o (Standard)</option>
-									<option value="claude-3-5-sonnet-20240620">Anthropic Claude 3.5 Sonnet</option>
-									<option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+									<option value="gpt-4o" <?php selected( $current_model, 'gpt-4o' ); ?>>OpenAI GPT-4o (Standard)</option>
+									<option value="claude-3-5-sonnet-20240620" <?php selected( $current_model, 'claude-3-5-sonnet-20240620' ); ?>>Anthropic Claude 3.5 Sonnet</option>
+									<option value="gemini-1.5-pro" <?php selected( $current_model, 'gemini-1.5-pro' ); ?>>Google Gemini 1.5 Pro</option>
 								</optgroup>
 								<optgroup label="High Volume / Fast">
-									<option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
-									<option value="gemini-1.5-flash">Google Gemini 1.5 Flash</option>
-									<option value="gemini-3-flash">Google Gemini 3 Flash (BETA)</option>
+									<option value="gpt-4o-mini" <?php selected( $current_model, 'gpt-4o-mini' ); ?>>OpenAI GPT-4o Mini</option>
+									<option value="gemini-1.5-flash" <?php selected( $current_model, 'gemini-1.5-flash' ); ?>>Google Gemini 1.5 Flash</option>
+									<option value="gemini-3-flash" <?php selected( $current_model, 'gemini-3-flash' ); ?>>Google Gemini 3 Flash (BETA)</option>
 								</optgroup>
 								<optgroup label="OpenRouter / Open Source">
-									<option value="meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B (via OpenRouter)</option>
-									<option value="mistralai/mistral-large">Mistral Large</option>
-									<option value="x-ai/grok-1">xAI Grok-1</option>
+									<option value="meta-llama/llama-3.1-405b-instruct" <?php selected( $current_model, 'meta-llama/llama-3.1-405b-instruct' ); ?>>Llama 3.1 405B (via OpenRouter)</option>
+									<option value="mistralai/mistral-large" <?php selected( $current_model, 'mistralai/mistral-large' ); ?>>Mistral Large</option>
+									<option value="x-ai/grok-1" <?php selected( $current_model, 'x-ai/grok-1' ); ?>>xAI Grok-1</option>
 								</optgroup>
 							</select>
 						</div>
