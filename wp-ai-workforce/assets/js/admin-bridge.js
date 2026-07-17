@@ -198,9 +198,15 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const formData = new FormData(settingsForm);
             const data = Object.fromEntries(formData.entries());
-            // Handle checkboxes
-            data.agency_mode = settingsForm.querySelector('[name="agency_mode"]').checked ? '1' : '0';
-            data.widget_enabled = settingsForm.querySelector('[name="widget_enabled"]').checked ? '1' : '0';
+            // Handle checkboxes safely
+            const agencyModeEl = settingsForm.querySelector('[name="agency_mode"]');
+            data.agency_mode = agencyModeEl ? (agencyModeEl.checked ? '1' : '0') : '0';
+
+            const widgetEnabledEl = settingsForm.querySelector('[name="widget_enabled"]');
+            data.widget_enabled = widgetEnabledEl ? (widgetEnabledEl.checked ? '1' : '0') : '0';
+
+            const maintenanceModeEl = settingsForm.querySelector('[name="maintenance_mode"]');
+            data.maintenance_mode = maintenanceModeEl ? (maintenanceModeEl.checked ? '1' : '0') : '0';
 
             nexusFetch('settings', 'POST', data).then(() => {
                 showToast('Infrastructure configuration saved.');

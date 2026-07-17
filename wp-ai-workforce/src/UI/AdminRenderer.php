@@ -658,10 +658,9 @@ class AdminRenderer {
 				</div>
 			</div>
 
-			<div class="max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-10">
-				<div class="glass-panel p-8 rounded-2xl border border-nexus-border">
+			<form id="nexus-settings-form" class="max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-10">
+				<div class="glass-panel p-8 rounded-2xl border border-nexus-border space-y-6">
 					<h2 class="text-xl font-semibold mb-6 text-accent">Global AI Engines</h2>
-					<form id="nexus-settings-form" class="space-y-6">
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">OpenAI API Key</label>
 							<input type="password" name="openai_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-...">
@@ -715,7 +714,6 @@ class AdminRenderer {
 						<button type="submit" class="w-full bg-accent text-[#1e293b] font-bold py-4 rounded-xl transition-all shadow-lg shadow-accent/10 nexus-btn-vibrant">Save Infrastructure</button>
 						<button type="button" id="nexus-test-connectivity" class="w-full mt-2 bg-[#f8fafc]/5 border border-white/10 text-[#1e293b] py-2 rounded-lg text-xs hover:bg-[#f8fafc]/10 transition-all nexus-btn-vibrant">Run Global Connectivity Test</button>
 						<span class="nexus-button-note text-center">Expect: Secure AES-256 encryption of all keys before storage.</span>
-					</form>
 				</div>
 
 				<div class="glass-panel p-8 rounded-2xl border border-nexus-border">
@@ -737,24 +735,24 @@ class AdminRenderer {
 						<h2 class="text-xl font-semibold mt-10 mb-6 text-nexus-gold">White Label & Brand</h2>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Agency Logo URL</label>
-							<input type="text" name="agency_logo" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" placeholder="https://...">
+							<input type="text" name="agency_logo" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" value="<?php echo esc_attr( $this->settings->get( 'agency_logo', '' ) ); ?>" placeholder="https://...">
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Primary Accent Color</label>
-							<input type="color" name="ui_color" class="w-20 h-12 bg-nexus-elevated border border-nexus-border rounded-lg p-1 text-[#1e293b] cursor-pointer" value="#7C3AED">
+							<input type="color" name="ui_color" class="w-20 h-12 bg-nexus-elevated border border-nexus-border rounded-lg p-1 text-[#1e293b] cursor-pointer" value="<?php echo esc_attr( $this->settings->get( 'ui_color', '#7C3AED' ) ); ?>">
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Global UI Font</label>
 							<select name="ui_font" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]">
-								<option value="Inter">Inter (Modern SaaS)</option>
-								<option value="Segoe UI">Segoe UI (Enterprise)</option>
-								<option value="JetBrains Mono">JetBrains Mono (Technical)</option>
-								<option value="Playfair Display">Playfair Display (Luxury)</option>
+								<option value="Inter" <?php selected( $this->settings->get( 'ui_font', 'Inter' ), 'Inter' ); ?>>Inter (Modern SaaS)</option>
+								<option value="Segoe UI" <?php selected( $this->settings->get( 'ui_font', 'Inter' ), 'Segoe UI' ); ?>>Segoe UI (Enterprise)</option>
+								<option value="JetBrains Mono" <?php selected( $this->settings->get( 'ui_font', 'Inter' ), 'JetBrains Mono' ); ?>>JetBrains Mono (Technical)</option>
+								<option value="Playfair Display" <?php selected( $this->settings->get( 'ui_font', 'Inter' ), 'Playfair Display' ); ?>>Playfair Display (Luxury)</option>
 							</select>
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Platform Display Title</label>
-							<input type="text" name="platform_title" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" placeholder="Nexus AI Workforce">
+							<input type="text" name="platform_title" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" value="<?php echo esc_attr( $this->settings->get( 'platform_title', 'Nexus AI Workforce' ) ); ?>" placeholder="Nexus AI Workforce">
 						</div>
 						<div class="p-6 rounded-2xl bg-nexus-elevated border border-nexus-border">
 							<p class="text-sm font-bold text-[#1e293b] mb-2 uppercase">Agency Mode</p>
@@ -848,7 +846,7 @@ class AdminRenderer {
 						</div>
 					</div>
 				</div>
-			</div>
+			</form>
 		</div>
 		<?php
 	}
