@@ -636,6 +636,65 @@ class AdminRenderer {
 	 * Render the "Settings" page.
 	 */
 	public function render_settings_page(): void {
+		if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['nexus_ai_settings_nonce'] ) ) {
+			if ( wp_verify_nonce( $_POST['nexus_ai_settings_nonce'], 'nexus_ai_settings_save' ) ) {
+				$data = [];
+				$params = $_POST;
+
+				$sensitive_keys = [ 'openai_api_key', 'claude_api_key', 'gemini_api_key', 'openrouter_api_key', 'deepseek_api_key', 'mistral_api_key' ];
+				$encryption = new \NexusAI\Workforce\Utils\Encryption();
+
+				foreach ( $sensitive_keys as $key ) {
+					if ( isset( $params[ $key ] ) && $params[ $key ] !== '' && $params[ $key ] !== '********' ) {
+						$data[ $key ] = $encryption->encrypt( $params[ $key ] );
+					}
+				}
+
+				if ( isset( $params['default_model'] ) ) {
+					$data['default_model'] = sanitize_text_field( $params['default_model'] );
+				}
+
+				if ( isset( $params['ui_color'] ) ) {
+					$data['ui_color'] = sanitize_hex_color( $params['ui_color'] );
+				}
+
+				if ( isset( $params['agency_logo'] ) ) {
+					$data['agency_logo'] = esc_url_raw( $params['agency_logo'] );
+				}
+
+				if ( isset( $params['platform_title'] ) ) {
+					$data['platform_title'] = sanitize_text_field( $params['platform_title'] );
+				}
+
+				$data['agency_mode'] = isset( $params['agency_mode'] ) ? true : false;
+				$data['maintenance_mode'] = isset( $params['maintenance_mode'] ) ? true : false;
+				$data['widget_enabled'] = isset( $params['widget_enabled'] ) ? true : false;
+
+				if ( isset( $params['company_mission'] ) ) {
+					$data['company_mission'] = sanitize_textarea_field( $params['company_mission'] );
+				}
+
+				if ( isset( $params['company_values'] ) ) {
+					$data['company_values'] = sanitize_textarea_field( $params['company_values'] );
+				}
+
+				if ( isset( $params['company_audience'] ) ) {
+					$data['company_audience'] = sanitize_textarea_field( $params['company_audience'] );
+				}
+
+				if ( isset( $params['ui_font'] ) ) {
+					$data['ui_font'] = sanitize_text_field( $params['ui_font'] );
+				}
+
+				if ( isset( $params['public_agent_id'] ) ) {
+					$data['public_agent_id'] = (int) $params['public_agent_id'];
+				}
+
+				$this->settings->update( $data );
+				echo '<div class="notice notice-success is-dismissible" style="background:#10b981; color:#fff; padding:15px; border-radius:12px; margin-bottom:20px; font-weight:bold; box-shadow:0 10px 15px -3px rgba(16,185,129,0.2);">System infrastructure configuration saved successfully.</div>';
+			}
+		}
+
 		echo $this->get_brand_styles();
 		?>
 		<div class="nexus-admin-body p-10 theme-settings animate-fade-in-up">
@@ -659,6 +718,7 @@ class AdminRenderer {
 			</div>
 
 			<form id="nexus-settings-form" method="POST" class="max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-10">
+				<?php wp_nonce_field( 'nexus_ai_settings_save', 'nexus_ai_settings_nonce' ); ?>
 				<div class="glass-panel p-8 rounded-2xl border border-nexus-border space-y-6">
 					<h2 class="text-xl font-semibold mb-6 text-accent">Global AI Engines</h2>
 						<div>

@@ -47,7 +47,20 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         if (data) options.body = JSON.stringify(data);
 
-        const response = await fetch(`${nexus_ai_data.rest_url}nexus-ai/v1/${endpoint}`, options);
+        let url = nexus_ai_data.rest_url;
+        if (url.includes('?rest_route=')) {
+            if (!url.endsWith('/')) {
+                url += '/';
+            }
+            url = url + 'nexus-ai/v1/' + endpoint;
+        } else {
+            if (!url.endsWith('/')) {
+                url += '/';
+            }
+            url = url + 'nexus-ai/v1/' + endpoint;
+        }
+
+        const response = await fetch(url, options);
         return response.json();
     }
 
