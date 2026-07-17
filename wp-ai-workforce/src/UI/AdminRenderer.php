@@ -265,6 +265,21 @@ class AdminRenderer {
 	 * Render the Departments (Org Structure) page.
 	 */
 	public function render_departments_page(): void {
+		if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['nexus_ai_dept_nonce'] ) ) {
+			if ( wp_verify_nonce( $_POST['nexus_ai_dept_nonce'], 'nexus_ai_dept_save' ) ) {
+				$name = sanitize_text_field( $_POST['name'] ?? '' );
+				$description = sanitize_textarea_field( $_POST['description'] ?? '' );
+				if ( ! empty( $name ) ) {
+					$repo = new \NexusAI\Workforce\Repositories\DepartmentRepository();
+					$repo->create( [
+						'name'        => $name,
+						'description' => $description,
+					] );
+					echo '<div class="notice notice-success is-dismissible" style="background:#10b981; color:#fff; padding:15px; border-radius:12px; margin-bottom:20px; font-weight:bold; box-shadow:0 10px 15px -3px rgba(16,185,129,0.2);">Department created successfully.</div>';
+				}
+			}
+		}
+
 		echo $this->get_brand_styles();
 		global $wpdb;
 		$depts = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}ai_departments ORDER BY name ASC", ARRAY_A ) ?: [];
@@ -293,7 +308,8 @@ class AdminRenderer {
 				<div class="lg:col-span-1">
 					<div class="glass-panel p-8 rounded-2xl border border-nexus-border">
 						<h2 class="text-xl font-bold mb-6">Create New Department</h2>
-						<form id="nexus-create-dept-form" class="space-y-6">
+						<form id="nexus-create-dept-form" method="POST" class="space-y-6">
+							<?php wp_nonce_field( 'nexus_ai_dept_save', 'nexus_ai_dept_nonce' ); ?>
 							<div>
 								<label class="block text-sm font-medium text-gray-400 mb-2">Department Name</label>
 								<input type="text" name="name" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" placeholder="e.g. Marketing, IT, Finance">
@@ -335,6 +351,37 @@ class AdminRenderer {
 	}
 
 	public function render_workforce_page(): void {
+		if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['nexus_ai_hire_nonce'] ) ) {
+			if ( wp_verify_nonce( $_POST['nexus_ai_hire_nonce'], 'nexus_ai_hire_save' ) ) {
+				$params = $_POST;
+				$repo = new \NexusAI\Workforce\Repositories\EmployeeRepository();
+				$data = [
+					'name'             => sanitize_text_field( $params['name'] ?? '' ),
+					'position'         => sanitize_text_field( $params['position'] ?? '' ),
+					'department_id'    => absint( $params['department_id'] ?? 0 ),
+					'role_description' => wp_kses_post( $params['identity'] ?? '' ),
+					'skills'           => wp_kses_post( $params['rules'] ?? '' ),
+					'kpis'             => wp_kses_post( $params['kpis'] ?? '' ),
+					'prompt_template'  => wp_kses_post( $params['mission'] ?? '' ),
+					'thinking_process' => wp_kses_post( $params['thinking_process'] ?? '' ),
+					'output_format'    => wp_kses_post( $params['output_format'] ?? '' ),
+					'negative_prompts' => wp_kses_post( $params['negative_prompts'] ?? '' ),
+					'examples'         => wp_kses_post( $params['examples'] ?? '' ),
+					'model_settings'   => wp_json_encode( [
+						'model'       => sanitize_text_field( $params['model'] ?? 'gpt-4o' ),
+						'temperature' => isset( $params['temperature'] ) ? (float) $params['temperature'] : 0.7,
+						'provider'    => 'openai',
+						'personality' => sanitize_text_field( $params['personality'] ?? 'professional' ),
+						'voice'       => sanitize_text_field( $params['voice'] ?? 'onyx' ),
+					] ),
+				];
+
+				$id = $repo->create( $data );
+				( new \NexusAI\Workforce\Utils\AuditLogger() )->log( 'employee_hired', "Deployed new AI agent: {$data['name']} as {$data['position']}", $id );
+				echo '<div class="notice notice-success is-dismissible" style="background:#10b981; color:#fff; padding:15px; border-radius:12px; margin-bottom:20px; font-weight:bold; box-shadow:0 10px 15px -3px rgba(16,185,129,0.2);">AI Agent deployed successfully.</div>';
+			}
+		}
+
 		echo $this->get_brand_styles();
 		?>
 		<div class="nexus-admin-body p-10 theme-workforce animate-fade-in-up">
@@ -436,7 +483,8 @@ class AdminRenderer {
 						<p class="text-[10px] text-gray-500 mt-3">Expect: Instant population of professional identity and mission constraints.</p>
 					</div>
 
-					<form id="nexus-hire-agent-form" class="space-y-8">
+					<form id="nexus-hire-agent-form" method="POST" class="space-y-8">
+						<?php wp_nonce_field( 'nexus_ai_hire_save', 'nexus_ai_hire_nonce' ); ?>
 						<!-- Prompt Preview Toggle -->
 						<div class="flex justify-end mb-2">
 							<button type="button" id="nexus-toggle-prompt-preview" class="text-[10px] font-bold text-accent uppercase tracking-widest hover:underline">Show Master Prompt Preview</button>
