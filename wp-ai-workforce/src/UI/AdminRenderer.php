@@ -265,6 +265,21 @@ class AdminRenderer {
 	 * Render the Departments (Org Structure) page.
 	 */
 	public function render_departments_page(): void {
+		if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['nexus_ai_dept_nonce'] ) ) {
+			if ( wp_verify_nonce( $_POST['nexus_ai_dept_nonce'], 'nexus_ai_dept_save' ) ) {
+				$name = sanitize_text_field( $_POST['name'] ?? '' );
+				$description = sanitize_textarea_field( $_POST['description'] ?? '' );
+				if ( ! empty( $name ) ) {
+					$repo = new \NexusAI\Workforce\Repositories\DepartmentRepository();
+					$repo->create( [
+						'name'        => $name,
+						'description' => $description,
+					] );
+					echo '<div class="notice notice-success is-dismissible" style="background:#10b981; color:#fff; padding:15px; border-radius:12px; margin-bottom:20px; font-weight:bold; box-shadow:0 10px 15px -3px rgba(16,185,129,0.2);">Department created successfully.</div>';
+				}
+			}
+		}
+
 		echo $this->get_brand_styles();
 		global $wpdb;
 		$depts = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}ai_departments ORDER BY name ASC", ARRAY_A ) ?: [];
@@ -293,7 +308,8 @@ class AdminRenderer {
 				<div class="lg:col-span-1">
 					<div class="glass-panel p-8 rounded-2xl border border-nexus-border">
 						<h2 class="text-xl font-bold mb-6">Create New Department</h2>
-						<form id="nexus-create-dept-form" class="space-y-6">
+						<form id="nexus-create-dept-form" method="POST" class="space-y-6">
+							<?php wp_nonce_field( 'nexus_ai_dept_save', 'nexus_ai_dept_nonce' ); ?>
 							<div>
 								<label class="block text-sm font-medium text-gray-400 mb-2">Department Name</label>
 								<input type="text" name="name" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" placeholder="e.g. Marketing, IT, Finance">
@@ -313,12 +329,28 @@ class AdminRenderer {
 							<div class="glass-panel p-6 rounded-2xl border border-nexus-border glass-card-hover">
 								<h3 class="text-xl font-bold text-accent mb-2"><?php echo esc_html( $dept['name'] ); ?></h3>
 								<p class="text-sm text-gray-300 mb-4"><?php echo esc_html( $dept['description'] ); ?></p>
+
+								<!-- Department Team Listing -->
+								<div class="mt-4 p-4 rounded-xl bg-nexus-elevated/40 border border-white/5 space-y-2 text-xs">
+									<p class="font-bold text-[#1e293b] text-[10px] uppercase tracking-wider mb-2">Department Team:</p>
+									<?php
+									$dept_agents = $wpdb->get_results( $wpdb->prepare( "SELECT name, position FROM {$wpdb->prefix}ai_employees WHERE department_id = %d AND is_active = 1", $dept['id'] ), ARRAY_A ) ?: [];
+									if ( ! empty( $dept_agents ) ) {
+										foreach ( $dept_agents as $da ) {
+											echo '<p class="text-gray-400">• <span class="font-bold text-accent">' . esc_html( $da['name'] ) . '</span> (' . esc_html( $da['position'] ) . ')</p>';
+										}
+									} else {
+										echo '<p class="italic text-gray-500 opacity-60">No agents assigned.</p>';
+									}
+									?>
+								</div>
+
 								<div class="flex justify-between items-center mt-6 pt-4 border-t border-nexus-border/30">
 									<span class="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Active Agents: <?php
 										echo (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}ai_employees WHERE department_id = %d", $dept['id'] ) );
 									?></span>
 									<button class="nexus-delete-dept text-xs text-red-500/50 hover:text-red-500 transition-all" data-id="<?php echo (int) $dept['id']; ?>">Delete Dept</button>
-									<button class="text-xs text-accent hover:underline font-bold">Manage Team</button>
+									<a href="<?php echo admin_url( 'admin.php?page=nexus-ai-workforce-employees' ); ?>" class="text-xs text-accent hover:underline font-bold">Manage Team</a>
 								</div>
 							</div>
 						<?php endforeach; ?>
@@ -335,6 +367,37 @@ class AdminRenderer {
 	}
 
 	public function render_workforce_page(): void {
+		if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['nexus_ai_hire_nonce'] ) ) {
+			if ( wp_verify_nonce( $_POST['nexus_ai_hire_nonce'], 'nexus_ai_hire_save' ) ) {
+				$params = $_POST;
+				$repo = new \NexusAI\Workforce\Repositories\EmployeeRepository();
+				$data = [
+					'name'             => sanitize_text_field( $params['name'] ?? '' ),
+					'position'         => sanitize_text_field( $params['position'] ?? '' ),
+					'department_id'    => absint( $params['department_id'] ?? 0 ),
+					'role_description' => wp_kses_post( $params['identity'] ?? '' ),
+					'skills'           => wp_kses_post( $params['rules'] ?? '' ),
+					'kpis'             => wp_kses_post( $params['kpis'] ?? '' ),
+					'prompt_template'  => wp_kses_post( $params['mission'] ?? '' ),
+					'thinking_process' => wp_kses_post( $params['thinking_process'] ?? '' ),
+					'output_format'    => wp_kses_post( $params['output_format'] ?? '' ),
+					'negative_prompts' => wp_kses_post( $params['negative_prompts'] ?? '' ),
+					'examples'         => wp_kses_post( $params['examples'] ?? '' ),
+					'model_settings'   => wp_json_encode( [
+						'model'       => sanitize_text_field( $params['model'] ?? 'gpt-4o' ),
+						'temperature' => isset( $params['temperature'] ) ? (float) $params['temperature'] : 0.7,
+						'provider'    => 'openai',
+						'personality' => sanitize_text_field( $params['personality'] ?? 'professional' ),
+						'voice'       => sanitize_text_field( $params['voice'] ?? 'onyx' ),
+					] ),
+				];
+
+				$id = $repo->create( $data );
+				( new \NexusAI\Workforce\Utils\AuditLogger() )->log( 'employee_hired', "Deployed new AI agent: {$data['name']} as {$data['position']}", $id );
+				echo '<div class="notice notice-success is-dismissible" style="background:#10b981; color:#fff; padding:15px; border-radius:12px; margin-bottom:20px; font-weight:bold; box-shadow:0 10px 15px -3px rgba(16,185,129,0.2);">AI Agent deployed successfully.</div>';
+			}
+		}
+
 		echo $this->get_brand_styles();
 		?>
 		<div class="nexus-admin-body p-10 theme-workforce animate-fade-in-up">
@@ -436,7 +499,8 @@ class AdminRenderer {
 						<p class="text-[10px] text-gray-500 mt-3">Expect: Instant population of professional identity and mission constraints.</p>
 					</div>
 
-					<form id="nexus-hire-agent-form" class="space-y-8">
+					<form id="nexus-hire-agent-form" method="POST" class="space-y-8">
+						<?php wp_nonce_field( 'nexus_ai_hire_save', 'nexus_ai_hire_nonce' ); ?>
 						<!-- Prompt Preview Toggle -->
 						<div class="flex justify-end mb-2">
 							<button type="button" id="nexus-toggle-prompt-preview" class="text-[10px] font-bold text-accent uppercase tracking-widest hover:underline">Show Master Prompt Preview</button>
@@ -460,6 +524,19 @@ class AdminRenderer {
 								<div>
 									<label class="block text-sm font-medium text-gray-400 mb-2">Professional Position</label>
 									<input type="text" name="position" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" placeholder="e.g. CMO, Full Stack Developer">
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-400 mb-2">Assign Department</label>
+									<select name="department_id" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]">
+										<option value="0">-- No Department (Global) --</option>
+										<?php
+										global $wpdb;
+										$depts_list = $wpdb->get_results( "SELECT id, name FROM {$wpdb->prefix}ai_departments ORDER BY name ASC", ARRAY_A ) ?: [];
+										foreach ( $depts_list as $d ) {
+											echo '<option value="' . (int) $d['id'] . '">' . esc_html( $d['name'] ) . '</option>';
+										}
+										?>
+									</select>
 								</div>
 							</div>
 						</div>
@@ -540,10 +617,21 @@ class AdminRenderer {
 							<div>
 								<label class="block text-sm font-medium text-gray-400 mb-2">AI Model</label>
 								<select name="model" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]">
-									<option value="gpt-4o">GPT-4o (Recommended)</option>
-									<option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</option>
-									<option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-									<option value="openrouter/meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B (OpenRouter)</option>
+									<optgroup label="High Reasoning">
+										<option value="gpt-4o">OpenAI GPT-4o (Standard)</option>
+										<option value="claude-3-5-sonnet-20240620">Anthropic Claude 3.5 Sonnet</option>
+										<option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+									</optgroup>
+									<optgroup label="High Volume / Fast">
+										<option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
+										<option value="gemini-1.5-flash">Google Gemini 1.5 Flash</option>
+										<option value="gemini-3-flash">Google Gemini 3 Flash (BETA)</option>
+									</optgroup>
+									<optgroup label="OpenRouter / Open Source">
+										<option value="meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B (via OpenRouter)</option>
+										<option value="mistralai/mistral-large">Mistral Large</option>
+										<option value="x-ai/grok-1">xAI Grok-1</option>
+									</optgroup>
 								</select>
 							</div>
 							<div>
@@ -636,6 +724,65 @@ class AdminRenderer {
 	 * Render the "Settings" page.
 	 */
 	public function render_settings_page(): void {
+		if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['nexus_ai_settings_nonce'] ) ) {
+			if ( wp_verify_nonce( $_POST['nexus_ai_settings_nonce'], 'nexus_ai_settings_save' ) ) {
+				$data = [];
+				$params = $_POST;
+
+				$sensitive_keys = [ 'openai_api_key', 'claude_api_key', 'gemini_api_key', 'openrouter_api_key', 'deepseek_api_key', 'mistral_api_key' ];
+				$encryption = new \NexusAI\Workforce\Utils\Encryption();
+
+				foreach ( $sensitive_keys as $key ) {
+					if ( isset( $params[ $key ] ) && $params[ $key ] !== '' && $params[ $key ] !== '********' ) {
+						$data[ $key ] = $encryption->encrypt( $params[ $key ] );
+					}
+				}
+
+				if ( isset( $params['default_model'] ) ) {
+					$data['default_model'] = sanitize_text_field( $params['default_model'] );
+				}
+
+				if ( isset( $params['ui_color'] ) ) {
+					$data['ui_color'] = sanitize_hex_color( $params['ui_color'] );
+				}
+
+				if ( isset( $params['agency_logo'] ) ) {
+					$data['agency_logo'] = esc_url_raw( $params['agency_logo'] );
+				}
+
+				if ( isset( $params['platform_title'] ) ) {
+					$data['platform_title'] = sanitize_text_field( $params['platform_title'] );
+				}
+
+				$data['agency_mode'] = isset( $params['agency_mode'] ) ? true : false;
+				$data['maintenance_mode'] = isset( $params['maintenance_mode'] ) ? true : false;
+				$data['widget_enabled'] = isset( $params['widget_enabled'] ) ? true : false;
+
+				if ( isset( $params['company_mission'] ) ) {
+					$data['company_mission'] = sanitize_textarea_field( $params['company_mission'] );
+				}
+
+				if ( isset( $params['company_values'] ) ) {
+					$data['company_values'] = sanitize_textarea_field( $params['company_values'] );
+				}
+
+				if ( isset( $params['company_audience'] ) ) {
+					$data['company_audience'] = sanitize_textarea_field( $params['company_audience'] );
+				}
+
+				if ( isset( $params['ui_font'] ) ) {
+					$data['ui_font'] = sanitize_text_field( $params['ui_font'] );
+				}
+
+				if ( isset( $params['public_agent_id'] ) ) {
+					$data['public_agent_id'] = (int) $params['public_agent_id'];
+				}
+
+				$this->settings->update( $data );
+				echo '<div class="notice notice-success is-dismissible" style="background:#10b981; color:#fff; padding:15px; border-radius:12px; margin-bottom:20px; font-weight:bold; box-shadow:0 10px 15px -3px rgba(16,185,129,0.2);">System infrastructure configuration saved successfully.</div>';
+			}
+		}
+
 		echo $this->get_brand_styles();
 		?>
 		<div class="nexus-admin-body p-10 theme-settings animate-fade-in-up">
@@ -658,64 +805,64 @@ class AdminRenderer {
 				</div>
 			</div>
 
-			<div class="max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-10">
-				<div class="glass-panel p-8 rounded-2xl border border-nexus-border">
+			<form id="nexus-settings-form" method="POST" class="max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-10">
+				<?php wp_nonce_field( 'nexus_ai_settings_save', 'nexus_ai_settings_nonce' ); ?>
+				<div class="glass-panel p-8 rounded-2xl border border-nexus-border space-y-6">
 					<h2 class="text-xl font-semibold mb-6 text-accent">Global AI Engines</h2>
-					<form id="nexus-settings-form" class="space-y-6">
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">OpenAI API Key</label>
-							<input type="password" name="openai_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-...">
+							<input type="password" name="openai_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'openai_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-...">
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Anthropic API Key</label>
-							<input type="password" name="claude_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-ant-...">
+							<input type="password" name="claude_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'claude_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-ant-...">
 						</div>
 						<div class="dept-marketing p-4 rounded-xl border border-nexus-blue/10">
 							<label class="block text-sm font-bold text-[#1e293b] mb-2 flex items-center gap-2">
 								<svg class="w-4 h-4 text-nexus-blue" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
 								Google Gemini Key
 							</label>
-							<input type="password" name="gemini_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-nexus-blue outline-none" placeholder="AIza...">
+							<input type="password" name="gemini_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-nexus-blue outline-none" value="<?php echo ! empty( $this->settings->get( 'gemini_api_key' ) ) ? '********' : ''; ?>" placeholder="AIza...">
 							<p class="text-[9px] text-gray-500 mt-2">Required for Gemini 1.5 Pro/Flash integration.</p>
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">OpenRouter API Key</label>
-							<input type="password" name="openrouter_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-or-...">
+							<input type="password" name="openrouter_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'openrouter_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-or-...">
 						</div>
 						<div class="grid grid-cols-2 gap-4">
 							<div>
 								<label class="block text-sm font-medium text-gray-400 mb-2">DeepSeek Key</label>
-								<input type="password" name="deepseek_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-...">
+								<input type="password" name="deepseek_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'deepseek_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-...">
 							</div>
 							<div>
 								<label class="block text-sm font-medium text-gray-400 mb-2">Mistral Key</label>
-								<input type="password" name="mistral_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" placeholder="sk-...">
+								<input type="password" name="mistral_api_key" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] focus:border-accent outline-none" value="<?php echo ! empty( $this->settings->get( 'mistral_api_key' ) ) ? '********' : ''; ?>" placeholder="sk-...">
 							</div>
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Global Default Model</label>
 							<select name="default_model" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b] outline-none focus:border-accent">
+								<?php $current_model = $this->settings->get( 'default_model', 'gpt-4o' ); ?>
 								<optgroup label="High Reasoning">
-									<option value="gpt-4o">OpenAI GPT-4o (Standard)</option>
-									<option value="claude-3-5-sonnet-20240620">Anthropic Claude 3.5 Sonnet</option>
-									<option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+									<option value="gpt-4o" <?php selected( $current_model, 'gpt-4o' ); ?>>OpenAI GPT-4o (Standard)</option>
+									<option value="claude-3-5-sonnet-20240620" <?php selected( $current_model, 'claude-3-5-sonnet-20240620' ); ?>>Anthropic Claude 3.5 Sonnet</option>
+									<option value="gemini-1.5-pro" <?php selected( $current_model, 'gemini-1.5-pro' ); ?>>Google Gemini 1.5 Pro</option>
 								</optgroup>
 								<optgroup label="High Volume / Fast">
-									<option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
-									<option value="gemini-1.5-flash">Google Gemini 1.5 Flash</option>
-									<option value="gemini-3-flash">Google Gemini 3 Flash (BETA)</option>
+									<option value="gpt-4o-mini" <?php selected( $current_model, 'gpt-4o-mini' ); ?>>OpenAI GPT-4o Mini</option>
+									<option value="gemini-1.5-flash" <?php selected( $current_model, 'gemini-1.5-flash' ); ?>>Google Gemini 1.5 Flash</option>
+									<option value="gemini-3-flash" <?php selected( $current_model, 'gemini-3-flash' ); ?>>Google Gemini 3 Flash (BETA)</option>
 								</optgroup>
 								<optgroup label="OpenRouter / Open Source">
-									<option value="meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B (via OpenRouter)</option>
-									<option value="mistralai/mistral-large">Mistral Large</option>
-									<option value="x-ai/grok-1">xAI Grok-1</option>
+									<option value="meta-llama/llama-3.1-405b-instruct" <?php selected( $current_model, 'meta-llama/llama-3.1-405b-instruct' ); ?>>Llama 3.1 405B (via OpenRouter)</option>
+									<option value="mistralai/mistral-large" <?php selected( $current_model, 'mistralai/mistral-large' ); ?>>Mistral Large</option>
+									<option value="x-ai/grok-1" <?php selected( $current_model, 'x-ai/grok-1' ); ?>>xAI Grok-1</option>
 								</optgroup>
 							</select>
 						</div>
 						<button type="submit" class="w-full bg-accent text-[#1e293b] font-bold py-4 rounded-xl transition-all shadow-lg shadow-accent/10 nexus-btn-vibrant">Save Infrastructure</button>
 						<button type="button" id="nexus-test-connectivity" class="w-full mt-2 bg-[#f8fafc]/5 border border-white/10 text-[#1e293b] py-2 rounded-lg text-xs hover:bg-[#f8fafc]/10 transition-all nexus-btn-vibrant">Run Global Connectivity Test</button>
 						<span class="nexus-button-note text-center">Expect: Secure AES-256 encryption of all keys before storage.</span>
-					</form>
 				</div>
 
 				<div class="glass-panel p-8 rounded-2xl border border-nexus-border">
@@ -737,24 +884,24 @@ class AdminRenderer {
 						<h2 class="text-xl font-semibold mt-10 mb-6 text-nexus-gold">White Label & Brand</h2>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Agency Logo URL</label>
-							<input type="text" name="agency_logo" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" placeholder="https://...">
+							<input type="text" name="agency_logo" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" value="<?php echo esc_attr( $this->settings->get( 'agency_logo', '' ) ); ?>" placeholder="https://...">
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Primary Accent Color</label>
-							<input type="color" name="ui_color" class="w-20 h-12 bg-nexus-elevated border border-nexus-border rounded-lg p-1 text-[#1e293b] cursor-pointer" value="#7C3AED">
+							<input type="color" name="ui_color" class="w-20 h-12 bg-nexus-elevated border border-nexus-border rounded-lg p-1 text-[#1e293b] cursor-pointer" value="<?php echo esc_attr( $this->settings->get( 'ui_color', '#7C3AED' ) ); ?>">
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Global UI Font</label>
 							<select name="ui_font" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]">
-								<option value="Inter">Inter (Modern SaaS)</option>
-								<option value="Segoe UI">Segoe UI (Enterprise)</option>
-								<option value="JetBrains Mono">JetBrains Mono (Technical)</option>
-								<option value="Playfair Display">Playfair Display (Luxury)</option>
+								<option value="Inter" <?php selected( $this->settings->get( 'ui_font', 'Inter' ), 'Inter' ); ?>>Inter (Modern SaaS)</option>
+								<option value="Segoe UI" <?php selected( $this->settings->get( 'ui_font', 'Inter' ), 'Segoe UI' ); ?>>Segoe UI (Enterprise)</option>
+								<option value="JetBrains Mono" <?php selected( $this->settings->get( 'ui_font', 'Inter' ), 'JetBrains Mono' ); ?>>JetBrains Mono (Technical)</option>
+								<option value="Playfair Display" <?php selected( $this->settings->get( 'ui_font', 'Inter' ), 'Playfair Display' ); ?>>Playfair Display (Luxury)</option>
 							</select>
 						</div>
 						<div>
 							<label class="block text-sm font-medium text-gray-400 mb-2">Platform Display Title</label>
-							<input type="text" name="platform_title" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" placeholder="Nexus AI Workforce">
+							<input type="text" name="platform_title" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]" value="<?php echo esc_attr( $this->settings->get( 'platform_title', 'Nexus AI Workforce' ) ); ?>" placeholder="Nexus AI Workforce">
 						</div>
 						<div class="p-6 rounded-2xl bg-nexus-elevated border border-nexus-border">
 							<p class="text-sm font-bold text-[#1e293b] mb-2 uppercase">Agency Mode</p>
@@ -848,7 +995,7 @@ class AdminRenderer {
 						</div>
 					</div>
 				</div>
-			</div>
+			</form>
 		</div>
 		<?php
 	}
@@ -1098,7 +1245,7 @@ class AdminRenderer {
 							<div class="flex gap-4">
 								<button id="nexus-clear-canvas" class="text-gray-400 hover:text-red-500 bg-[#f8fafc]/5 px-6 py-2 rounded-xl text-xs font-bold transition-all">Clear Canvas</button>
 								<button id="nexus-save-workflow-btn" class="bg-accent text-[#1e293b] px-8 py-3 rounded-xl font-bold hover:opacity-90 transition-all nexus-btn-vibrant">Save Workflow</button>
-								<button id="nexus-close-builder" class="text-gray-400 hover:text-[#1e293b] bg-nexus-elevated px-4 rounded-xl">✕</button>
+								<button id="nexus-close-builder" onclick="document.getElementById('nexus-visual-builder-modal').classList.add('hidden')" class="text-gray-400 hover:text-red-500 bg-[#f8fafc]/5 px-6 py-2 rounded-xl text-xs font-bold transition-all border border-white/10">Exit Builder</button>
 							</div>
 						</div>
 						<div id="nexus-workflow-canvas" class="flex-1 border-4 border-dashed border-nexus-border rounded-3xl flex items-center justify-center relative bg-black/20">
@@ -1154,7 +1301,11 @@ class AdminRenderer {
 				<!-- Meeting Controls Sidebar -->
 				<div class="lg:col-span-1 space-y-8">
 					<div class="glass-panel p-6 rounded-2xl border border-nexus-border dept-exec">
-						<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Invite Participants</h3>
+						<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Invite Participants</h3>
+						<div class="flex gap-2 mb-4">
+							<button type="button" id="nexus-meeting-select-all" class="text-[9px] bg-accent/20 text-accent px-3 py-1 rounded border border-accent/20 hover:bg-accent hover:text-black font-bold uppercase transition-all">Select All</button>
+							<button type="button" id="nexus-meeting-select-none" class="text-[9px] bg-nexus-elevated text-gray-400 px-3 py-1 rounded border border-nexus-border hover:text-[#1e293b] font-bold uppercase transition-all">Clear All</button>
+						</div>
 						<div class="space-y-3">
 							<?php foreach ( $agents as $agent ) : ?>
 								<label class="flex items-center gap-3 p-4 rounded-xl bg-nexus-elevated border border-nexus-border hover:border-accent cursor-pointer transition-all group">
@@ -1170,6 +1321,11 @@ class AdminRenderer {
 
 					<div class="glass-panel p-6 rounded-2xl border border-nexus-border">
 						<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Strategic Agenda</h3>
+						<div class="flex flex-wrap gap-2 mb-4">
+							<button type="button" class="nexus-meeting-preset text-[8px] bg-nexus-elevated border border-nexus-border text-gray-400 hover:text-accent hover:border-accent p-2 rounded transition-all font-bold" data-agenda="ROI Audit: Review current token usage, monthly cost efficiency, and suggest automatic prompt optimization paths to maximize operational labor savings.">ROI Audit</button>
+							<button type="button" class="nexus-meeting-preset text-[8px] bg-nexus-elevated border border-nexus-border text-gray-400 hover:text-accent hover:border-accent p-2 rounded transition-all font-bold" data-agenda="Marketing Storm: Brainstorm high-converting landing page headlines and ad copies targeting enterprise decision makers.">Marketing Storm</button>
+							<button type="button" class="nexus-meeting-preset text-[8px] bg-nexus-elevated border border-nexus-border text-gray-400 hover:text-accent hover:border-accent p-2 rounded transition-all font-bold" data-agenda="Technical Review: Assess technical debt, plugin architecture scalability, and devise a plan to implement recursive document chunking in the RAG Engine.">Technical Review</button>
+						</div>
 						<textarea id="nexus-meeting-agenda" class="w-full h-40 bg-nexus-elevated border border-nexus-border rounded-xl p-4 text-[#1e293b] text-sm outline-none focus:border-accent" placeholder="Enter objective..."></textarea>
 					</div>
 				</div>
@@ -1596,6 +1752,124 @@ class AdminRenderer {
 					<button class="nexus-complete-lesson w-full <?php echo in_array('automations', $completed) ? 'bg-green-500 text-[#1e293b]' : 'bg-accent/20 text-accent'; ?> font-bold py-3 rounded-xl hover:opacity-90 transition-all" data-id="automations">
 						<?php echo in_array('automations', $completed) ? 'Completed ✓' : 'Complete Lesson'; ?>
 					</button>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the "Agent Playground" chat and profile page.
+	 */
+	public function render_playground_page(): void {
+		echo $this->get_brand_styles();
+		global $wpdb;
+		$agents = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}ai_employees WHERE is_active = 1", ARRAY_A ) ?: [];
+		?>
+		<script>
+		window.nexusPlaygroundAgents = <?php echo wp_json_encode( $agents ); ?>;
+		</script>
+		<div class="nexus-admin-body p-10 theme-learning animate-fade-in-up">
+			<div class="mb-10">
+				<h2 class="text-sm font-semibold text-accent uppercase tracking-widest mb-2">Agent Playground</h2>
+				<h1 class="text-5xl font-black text-[#1e293b] text-gradient-vibrant leading-tight">Expert Conversation</h1>
+				<p class="text-gray-400 mt-3 max-w-2xl text-lg leading-relaxed">Select any active agent or specialist. Chat with them to observe their capabilities, persona, strategic KPI goals, and reasoning processes.</p>
+			</div>
+
+			<!-- Quick Select Grid -->
+			<?php if ( ! empty( $agents ) ) : ?>
+				<div class="mb-8">
+					<p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Quick-Select Active Experts:</p>
+					<div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
+						<?php
+						$count = 0;
+						foreach ( $agents as $agent ) {
+							if ( $count >= 4 ) break;
+							?>
+							<div class="nexus-playground-quick-card glass-panel p-4 rounded-xl border border-nexus-border hover:border-accent cursor-pointer transition-all flex flex-col justify-between" data-id="<?php echo (int) $agent['id']; ?>">
+								<div>
+									<p class="font-bold text-sm text-accent"><?php echo esc_html( $agent['name'] ); ?></p>
+									<p class="text-[10px] text-gray-400 uppercase mt-1"><?php echo esc_html( $agent['position'] ); ?></p>
+								</div>
+								<span class="text-[9px] text-[#1e293b]/50 mt-4 text-right">Consult →</span>
+							</div>
+							<?php
+							$count++;
+						}
+						?>
+					</div>
+				</div>
+			<?php endif; ?>
+
+			<!-- Select Dropdown -->
+			<div class="glass-panel p-6 rounded-2xl border border-nexus-border mb-10 max-w-4xl">
+				<label class="block text-sm font-bold text-accent mb-3 uppercase tracking-tighter">Choose Agent to Consult</label>
+				<select id="nexus-playground-agent-select" class="w-full bg-nexus-elevated border border-nexus-border rounded-xl p-4 text-[#1e293b] font-medium focus:ring-2 focus:ring-accent transition-all">
+					<option value="">-- Choose an Expert / Persona --</option>
+					<?php foreach ( $agents as $agent ) : ?>
+						<option value="<?php echo (int) $agent['id']; ?>"><?php echo esc_html( $agent['name'] ); ?> (<?php echo esc_html( $agent['position'] ); ?>)</option>
+					<?php endforeach; ?>
+				</select>
+			</div>
+
+			<!-- Grid Layout -->
+			<div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+				<!-- Left Column: Details -->
+				<div class="lg:col-span-1 space-y-6">
+					<div id="nexus-playground-agent-details" class="hidden glass-panel p-8 rounded-2xl border border-nexus-border space-y-6">
+						<div>
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Professional Position</h3>
+							<p id="nexus-play-position" class="text-lg font-bold text-[#1e293b]"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Persona & Capability</h3>
+							<p id="nexus-play-description" class="text-xs text-gray-400 leading-relaxed"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Skills & Rules</h3>
+							<p id="nexus-play-skills" class="text-xs text-gray-400 leading-relaxed"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Strategic Objectives (KPIs)</h3>
+							<p id="nexus-play-kpis" class="text-xs text-gray-400 leading-relaxed"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Reasoning (Thinking Process)</h3>
+							<p id="nexus-play-thinking" class="text-xs text-gray-400 leading-relaxed font-mono bg-black/20 p-2 rounded"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Output Format</h3>
+							<p id="nexus-play-output" class="text-xs text-gray-400 leading-relaxed"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Negative Guardrails</h3>
+							<p id="nexus-play-negative" class="text-xs text-red-500/80 leading-relaxed"></p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Right Column: Chat Window -->
+				<div class="lg:col-span-2">
+					<div class="glass-panel rounded-3xl border border-nexus-border min-h-[600px] flex flex-col overflow-hidden bg-black/40">
+						<div class="p-6 border-b border-nexus-border bg-nexus-elevated/50 flex justify-between items-center">
+							<div class="flex items-center gap-4">
+								<div class="w-3 h-3 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+								<h2 class="font-bold text-[#1e293b] uppercase tracking-widest text-[10px]">Playground Console</h2>
+							</div>
+							<span class="text-[9px] text-nexus-violet font-bold bg-nexus-violet/10 border border-nexus-violet/20 px-2 py-1 rounded-full uppercase">Agent Isolated Context</span>
+						</div>
+
+						<div id="nexus-playground-chat" class="flex-1 p-8 space-y-6 overflow-y-auto max-h-[450px] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
+							<div class="text-center text-gray-500 py-20">
+								Select an agent above to begin conversation.
+							</div>
+						</div>
+
+						<div class="p-6 bg-nexus-elevated/50 border-t border-nexus-border flex gap-4">
+							<input type="text" id="nexus-playground-input" class="flex-1 bg-nexus-elevated border border-nexus-border rounded-xl p-4 text-[#1e293b] outline-none focus:border-accent" placeholder="Consult your specialist...">
+							<button id="nexus-playground-send-btn" class="bg-accent hover:opacity-90 text-[#1e293b] font-bold px-8 rounded-xl transition-all shadow-lg shadow-accent/20 nexus-btn-vibrant">Ask Agent</button>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>

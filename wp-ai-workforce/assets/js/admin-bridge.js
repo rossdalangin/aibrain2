@@ -47,7 +47,20 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         if (data) options.body = JSON.stringify(data);
 
-        const response = await fetch(`${nexus_ai_data.rest_url}nexus-ai/v1/${endpoint}`, options);
+        let url = nexus_ai_data.rest_url;
+        if (url.includes('?rest_route=')) {
+            if (!url.endsWith('/')) {
+                url += '/';
+            }
+            url = url + 'nexus-ai/v1/' + endpoint;
+        } else {
+            if (!url.endsWith('/')) {
+                url += '/';
+            }
+            url = url + 'nexus-ai/v1/' + endpoint;
+        }
+
+        const response = await fetch(url, options);
         return response.json();
     }
 
@@ -198,9 +211,15 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const formData = new FormData(settingsForm);
             const data = Object.fromEntries(formData.entries());
-            // Handle checkboxes
-            data.agency_mode = settingsForm.querySelector('[name="agency_mode"]').checked ? '1' : '0';
-            data.widget_enabled = settingsForm.querySelector('[name="widget_enabled"]').checked ? '1' : '0';
+            // Handle checkboxes safely
+            const agencyModeEl = settingsForm.querySelector('[name="agency_mode"]');
+            data.agency_mode = agencyModeEl ? (agencyModeEl.checked ? '1' : '0') : '0';
+
+            const widgetEnabledEl = settingsForm.querySelector('[name="widget_enabled"]');
+            data.widget_enabled = widgetEnabledEl ? (widgetEnabledEl.checked ? '1' : '0') : '0';
+
+            const maintenanceModeEl = settingsForm.querySelector('[name="maintenance_mode"]');
+            data.maintenance_mode = maintenanceModeEl ? (maintenanceModeEl.checked ? '1' : '0') : '0';
 
             nexusFetch('settings', 'POST', data).then(() => {
                 showToast('Infrastructure configuration saved.');
@@ -552,6 +571,27 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('Initializing secure client portal environment...');
         }
 
+        // --- Collaboration Hub Select Toggle & Presets ---
+        if (e.target.closest('#nexus-meeting-select-all')) {
+            document.querySelectorAll('.nexus-meeting-invitee').forEach(cb => cb.checked = true);
+            showToast('All active AI executives selected.');
+        }
+
+        if (e.target.closest('#nexus-meeting-select-none')) {
+            document.querySelectorAll('.nexus-meeting-invitee').forEach(cb => cb.checked = false);
+            showToast('Participants list cleared.');
+        }
+
+        const presetBtn = e.target.closest('.nexus-meeting-preset');
+        if (presetBtn) {
+            const agendaText = presetBtn.dataset.agenda;
+            const agendaTextarea = document.getElementById('nexus-meeting-agenda');
+            if (agendaTextarea) {
+                agendaTextarea.value = agendaText;
+                showToast('Strategic agenda populated with preset.');
+            }
+        }
+
         const downloadTraceBtn = e.target.closest('#nexus-download-trace');
         if (downloadTraceBtn) {
             const logContent = document.getElementById('nexus-workflow-log').innerText;
@@ -629,12 +669,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (startMeetingBtn) {
         startMeetingBtn.addEventListener('click', function() {
             const invitees = Array.from(document.querySelectorAll('.nexus-meeting-invitee:checked')).map(cb => cb.value);
-            const agenda = document.getElementById('nexus-meeting-agenda').value;
-            if (invitees.length === 0 || !agenda) return;
+            const agendaVal = document.getElementById('nexus-meeting-agenda') ? document.getElementById('nexus-meeting-agenda').value : '';
+
+            if (invitees.length === 0) {
+                showToast('Please select at least one participant first.', 'error');
+                return;
+            }
+            if (!agendaVal) {
+                showToast('Please enter a strategic agenda first.', 'error');
+                return;
+            }
+
             document.getElementById('nexus-meeting-transcript').innerHTML = '<p class="text-accent italic">Strategic Session Initialized...</p>';
             document.getElementById('nexus-meeting-summarize')?.classList.add('hidden');
             meetingPaused = false;
-            runMeetingRound(invitees, agenda);
+            runMeetingRound(invitees, agendaVal);
         });
     }
 
@@ -781,6 +830,113 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{ data: [30, 40, 20, 10], backgroundColor: ['#7C3AED', '#0ea5e9', '#10b981', '#f59e0b'] }]
             },
             options: { ...defaultOptions, cutout: '70%' }
+        });
+    }
+
+    // --- 12. Agent Playground ---
+    const playgroundAgentSelect = document.getElementById('nexus-playground-agent-select');
+
+    // Quick select grid card handler
+    document.addEventListener('click', function(e) {
+        const card = e.target.closest('.nexus-playground-quick-card');
+        const selectEl = document.getElementById('nexus-playground-agent-select');
+        if (card && selectEl) {
+            const agentId = card.dataset.id;
+            selectEl.value = agentId;
+            selectEl.dispatchEvent(new Event('change'));
+            showToast('Expert selected. Profile loaded below.');
+        }
+    });
+
+    if (playgroundAgentSelect) {
+        playgroundAgentSelect.addEventListener('change', function() {
+            const agentId = playgroundAgentSelect.value;
+            const detailsContainer = document.getElementById('nexus-playground-agent-details');
+            const chatContainer = document.getElementById('nexus-playground-chat');
+
+            if (!agentId) {
+                detailsContainer.classList.add('hidden');
+                chatContainer.innerHTML = '<div class="text-center text-gray-500 py-20">Select an agent above to begin conversation.</div>';
+                return;
+            }
+
+            // Clear chat transcript on agent switch
+            chatContainer.innerHTML = '<div class="text-center text-accent py-10 animate-pulse">Session ready. Ask your agent a question below.</div>';
+
+            const agent = window.nexusPlaygroundAgents.find(a => parseInt(a.id) === parseInt(agentId));
+            if (agent) {
+                detailsContainer.classList.remove('hidden');
+                document.getElementById('nexus-play-position').innerText = agent.position || 'Specialist';
+                document.getElementById('nexus-play-description').innerText = agent.role_description || 'No description set.';
+                document.getElementById('nexus-play-skills').innerText = agent.skills || 'No skills set.';
+                document.getElementById('nexus-play-kpis').innerText = agent.kpis || 'No KPIs defined.';
+                document.getElementById('nexus-play-thinking').innerText = agent.thinking_process || 'First Principles';
+                document.getElementById('nexus-play-output').innerText = agent.output_format || 'Standard markdown';
+                document.getElementById('nexus-play-negative').innerText = agent.negative_prompts || 'None';
+            }
+        });
+    }
+
+    const playgroundSendBtn = document.getElementById('nexus-playground-send-btn');
+    if (playgroundSendBtn) {
+        let currentConversationId = 0;
+        playgroundSendBtn.addEventListener('click', function() {
+            const input = document.getElementById('nexus-playground-input');
+            const selectEl = document.getElementById('nexus-playground-agent-select');
+            const agentId = selectEl ? selectEl.value : '';
+            if (!agentId) {
+                showToast('Please select an agent first.', 'error');
+                return;
+            }
+            if (!input.value.trim()) return;
+
+            const chatContainer = document.getElementById('nexus-playground-chat');
+            const messageText = input.value.trim();
+
+            // Append user bubble
+            chatContainer.innerHTML += `
+                <div class="flex gap-4 justify-end items-start animate-fade-in-up">
+                    <div class="max-w-[80%] p-5 rounded-3xl bg-accent text-[#1e293b] shadow-xl">
+                        <p class="text-[9px] font-bold uppercase mb-1">You</p>
+                        <p class="text-sm leading-relaxed">${escapeHTML(messageText)}</p>
+                    </div>
+                </div>`;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            input.value = '';
+
+            // Show thinking indicator
+            const thinkingId = 'play-thinking-' + Date.now();
+            chatContainer.innerHTML += `
+                <div id="${thinkingId}" class="flex gap-4 items-start animate-fade-in-up">
+                    <div class="w-10 h-10 rounded-full bg-nexus-elevated border border-accent animate-pulse"></div>
+                    <div class="nexus-thinking-indicator mt-3">
+                        <span>Agent Reasoning</span>
+                        <div class="thinking-dot"></div><div class="thinking-dot"></div><div class="thinking-dot"></div>
+                    </div>
+                </div>`;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            nexusFetch('conversations', 'POST', {
+                conversation_id: currentConversationId,
+                employee_id: agentId,
+                message: messageText
+            }).then(res => {
+                document.getElementById(thinkingId)?.remove();
+                if (res.conversation_id) {
+                    currentConversationId = res.conversation_id;
+                }
+                // Append AI bubble
+                const bubble = `
+                    <div class="flex gap-4 items-start animate-fade-in-up">
+                        <div class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-bold text-[#1e293b] bg-accent shadow-xl">AI</div>
+                        <div class="flex-1 p-5 bg-[#f8fafc]/5 rounded-3xl border border-nexus-border/50 shadow-2xl">
+                            <p class="text-[9px] text-gray-500 font-bold uppercase mb-1 tracking-widest">Agent Response</p>
+                            <p class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">${escapeHTML(res.response)}</p>
+                        </div>
+                    </div>`;
+                chatContainer.innerHTML += bubble;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
         });
     }
 });

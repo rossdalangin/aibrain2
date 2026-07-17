@@ -16,6 +16,13 @@ class Plugin {
 	public function init() {
 		$this->register_hooks();
 		$this->init_components();
+		// Ensure database columns exist (self-healing migration)
+		if ( is_admin() && ! get_option( 'nexus_ai_workforce_db_migrated_v2' ) ) {
+			if ( class_exists( 'NexusAI\\Workforce\\Database\\Migration' ) ) {
+				\NexusAI\Workforce\Database\Migration::run();
+				update_option( 'nexus_ai_workforce_db_migrated_v2', true );
+			}
+		}
 	}
 
 	private function register_hooks() {
@@ -172,6 +179,15 @@ class Plugin {
 			'nexus-ai-workforce-settings',
 			[ $this, 'render_settings_page' ]
 		);
+
+		add_submenu_page(
+			'nexus-ai-workforce',
+			__( 'Playground', 'nexus-ai-workforce' ),
+			'Agent Playground',
+			'manage_options',
+			'nexus-ai-workforce-playground',
+			[ $this, 'render_playground_page' ]
+		);
 	}
 
 	public function render_admin_page() {
@@ -193,6 +209,12 @@ class Plugin {
 	public function render_settings_page() {
 		if ( class_exists( 'NexusAI\\Workforce\\UI\\AdminRenderer' ) ) {
 			( new \NexusAI\Workforce\UI\AdminRenderer() )->render_settings_page();
+		}
+	}
+
+	public function render_playground_page() {
+		if ( class_exists( 'NexusAI\\Workforce\\UI\\AdminRenderer' ) ) {
+			( new \NexusAI\Workforce\UI\AdminRenderer() )->render_playground_page();
 		}
 	}
 

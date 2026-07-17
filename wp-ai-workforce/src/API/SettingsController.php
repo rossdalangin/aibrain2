@@ -32,7 +32,7 @@ class SettingsController {
 	public function get_items( WP_REST_Request $request ): WP_REST_Response {
 		$settings = $this->repository->get_all();
 
-		$sensitive_keys = [ 'openai_api_key', 'claude_api_key', 'gemini_api_key', 'openrouter_api_key' ];
+		$sensitive_keys = [ 'openai_api_key', 'claude_api_key', 'gemini_api_key', 'openrouter_api_key', 'deepseek_api_key', 'mistral_api_key' ];
 
 		// Mask sensitive data
 		foreach ( $sensitive_keys as $key ) {
@@ -48,7 +48,7 @@ class SettingsController {
 		$params = $request->get_params();
 		$data = [];
 
-		$sensitive_keys = [ 'openai_api_key', 'claude_api_key', 'gemini_api_key', 'openrouter_api_key' ];
+		$sensitive_keys = [ 'openai_api_key', 'claude_api_key', 'gemini_api_key', 'openrouter_api_key', 'deepseek_api_key', 'mistral_api_key' ];
 
 		foreach ( $sensitive_keys as $key ) {
 			if ( isset( $params[ $key ] ) && $params[ $key ] !== '********' ) {
@@ -78,6 +78,34 @@ class SettingsController {
 
 		if ( isset( $params['agency_mode'] ) ) {
 			$data['agency_mode'] = (bool) $params['agency_mode'];
+		}
+
+		if ( isset( $params['company_mission'] ) ) {
+			$data['company_mission'] = sanitize_textarea_field( $params['company_mission'] );
+		}
+
+		if ( isset( $params['company_values'] ) ) {
+			$data['company_values'] = sanitize_textarea_field( $params['company_values'] );
+		}
+
+		if ( isset( $params['company_audience'] ) ) {
+			$data['company_audience'] = sanitize_textarea_field( $params['company_audience'] );
+		}
+
+		if ( isset( $params['ui_font'] ) ) {
+			$data['ui_font'] = sanitize_text_field( $params['ui_font'] );
+		}
+
+		if ( isset( $params['maintenance_mode'] ) ) {
+			$data['maintenance_mode'] = (bool) $params['maintenance_mode'];
+		}
+
+		if ( isset( $params['widget_enabled'] ) ) {
+			$data['widget_enabled'] = (bool) $params['widget_enabled'];
+		}
+
+		if ( isset( $params['public_agent_id'] ) ) {
+			$data['public_agent_id'] = (int) $params['public_agent_id'];
 		}
 
 		$success = $this->repository->update( $data );
