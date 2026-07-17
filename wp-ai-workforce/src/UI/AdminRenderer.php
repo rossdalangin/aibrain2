@@ -1719,4 +1719,97 @@ class AdminRenderer {
 		</div>
 		<?php
 	}
+
+	/**
+	 * Render the "Agent Playground" chat and profile page.
+	 */
+	public function render_playground_page(): void {
+		echo $this->get_brand_styles();
+		global $wpdb;
+		$agents = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}ai_employees WHERE is_active = 1", ARRAY_A ) ?: [];
+		?>
+		<script>
+		window.nexusPlaygroundAgents = <?php echo wp_json_encode( $agents ); ?>;
+		</script>
+		<div class="nexus-admin-body p-10 theme-learning animate-fade-in-up">
+			<div class="mb-10">
+				<h2 class="text-sm font-semibold text-accent uppercase tracking-widest mb-2">Agent Playground</h2>
+				<h1 class="text-5xl font-black text-[#1e293b] text-gradient-vibrant leading-tight">Expert Conversation</h1>
+				<p class="text-gray-400 mt-3 max-w-2xl text-lg leading-relaxed">Select any active agent or specialist. Chat with them to observe their capabilities, persona, strategic KPI goals, and reasoning processes.</p>
+			</div>
+
+			<!-- Select Dropdown -->
+			<div class="glass-panel p-6 rounded-2xl border border-nexus-border mb-10 max-w-4xl">
+				<label class="block text-sm font-bold text-accent mb-3 uppercase tracking-tighter">Choose Agent to Consult</label>
+				<select id="nexus-playground-agent-select" class="w-full bg-nexus-elevated border border-nexus-border rounded-xl p-4 text-[#1e293b] font-medium focus:ring-2 focus:ring-accent transition-all">
+					<option value="">-- Choose an Expert / Persona --</option>
+					<?php foreach ( $agents as $agent ) : ?>
+						<option value="<?php echo (int) $agent['id']; ?>"><?php echo esc_html( $agent['name'] ); ?> (<?php echo esc_html( $agent['position'] ); ?>)</option>
+					<?php endforeach; ?>
+				</select>
+			</div>
+
+			<!-- Grid Layout -->
+			<div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+				<!-- Left Column: Details -->
+				<div class="lg:col-span-1 space-y-6">
+					<div id="nexus-playground-agent-details" class="hidden glass-panel p-8 rounded-2xl border border-nexus-border space-y-6">
+						<div>
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Professional Position</h3>
+							<p id="nexus-play-position" class="text-lg font-bold text-[#1e293b]"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Persona & Capability</h3>
+							<p id="nexus-play-description" class="text-xs text-gray-400 leading-relaxed"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Skills & Rules</h3>
+							<p id="nexus-play-skills" class="text-xs text-gray-400 leading-relaxed"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Strategic Objectives (KPIs)</h3>
+							<p id="nexus-play-kpis" class="text-xs text-gray-400 leading-relaxed"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Reasoning (Thinking Process)</h3>
+							<p id="nexus-play-thinking" class="text-xs text-gray-400 leading-relaxed font-mono bg-black/20 p-2 rounded"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Output Format</h3>
+							<p id="nexus-play-output" class="text-xs text-gray-400 leading-relaxed"></p>
+						</div>
+						<div class="border-t border-nexus-border/30 pt-4">
+							<h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Negative Guardrails</h3>
+							<p id="nexus-play-negative" class="text-xs text-red-500/80 leading-relaxed"></p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Right Column: Chat Window -->
+				<div class="lg:col-span-2">
+					<div class="glass-panel rounded-3xl border border-nexus-border min-h-[600px] flex flex-col overflow-hidden bg-black/40">
+						<div class="p-6 border-b border-nexus-border bg-nexus-elevated/50 flex justify-between items-center">
+							<div class="flex items-center gap-4">
+								<div class="w-3 h-3 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+								<h2 class="font-bold text-[#1e293b] uppercase tracking-widest text-[10px]">Playground Console</h2>
+							</div>
+							<span class="text-[9px] text-nexus-violet font-bold bg-nexus-violet/10 border border-nexus-violet/20 px-2 py-1 rounded-full uppercase">Agent Isolated Context</span>
+						</div>
+
+						<div id="nexus-playground-chat" class="flex-1 p-8 space-y-6 overflow-y-auto max-h-[450px] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
+							<div class="text-center text-gray-500 py-20">
+								Select an agent above to begin conversation.
+							</div>
+						</div>
+
+						<div class="p-6 bg-nexus-elevated/50 border-t border-nexus-border flex gap-4">
+							<input type="text" id="nexus-playground-input" class="flex-1 bg-nexus-elevated border border-nexus-border rounded-xl p-4 text-[#1e293b] outline-none focus:border-accent" placeholder="Consult your specialist...">
+							<button id="nexus-playground-send-btn" class="bg-accent hover:opacity-90 text-[#1e293b] font-bold px-8 rounded-xl transition-all shadow-lg shadow-accent/20 nexus-btn-vibrant">Ask Agent</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
 }

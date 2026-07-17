@@ -802,4 +802,93 @@ document.addEventListener('DOMContentLoaded', function() {
             options: { ...defaultOptions, cutout: '70%' }
         });
     }
+
+    // --- 12. Agent Playground ---
+    const playgroundAgentSelect = document.getElementById('nexus-playground-agent-select');
+    if (playgroundAgentSelect) {
+        playgroundAgentSelect.addEventListener('change', function() {
+            const agentId = playgroundAgentSelect.value;
+            const detailsContainer = document.getElementById('nexus-playground-agent-details');
+            const chatContainer = document.getElementById('nexus-playground-chat');
+
+            if (!agentId) {
+                detailsContainer.classList.add('hidden');
+                chatContainer.innerHTML = '<div class="text-center text-gray-500 py-20">Select an agent above to begin conversation.</div>';
+                return;
+            }
+
+            // Clear chat transcript on agent switch
+            chatContainer.innerHTML = '<div class="text-center text-accent py-10 animate-pulse">Session ready. Ask your agent a question below.</div>';
+
+            const agent = window.nexusPlaygroundAgents.find(a => parseInt(a.id) === parseInt(agentId));
+            if (agent) {
+                detailsContainer.classList.remove('hidden');
+                document.getElementById('nexus-play-position').innerText = agent.position || 'Specialist';
+                document.getElementById('nexus-play-description').innerText = agent.role_description || 'No description set.';
+                document.getElementById('nexus-play-skills').innerText = agent.skills || 'No skills set.';
+                document.getElementById('nexus-play-kpis').innerText = agent.kpis || 'No KPIs defined.';
+                document.getElementById('nexus-play-thinking').innerText = agent.thinking_process || 'First Principles';
+                document.getElementById('nexus-play-output').innerText = agent.output_format || 'Standard markdown';
+                document.getElementById('nexus-play-negative').innerText = agent.negative_prompts || 'None';
+            }
+        });
+    }
+
+    const playgroundSendBtn = document.getElementById('nexus-playground-send-btn');
+    if (playgroundSendBtn) {
+        let currentConversationId = 0;
+        playgroundSendBtn.addEventListener('click', function() {
+            const input = document.getElementById('nexus-playground-input');
+            const agentId = playgroundAgentSelect.value;
+            if (!agentId || !input.value.trim()) return;
+
+            const chatContainer = document.getElementById('nexus-playground-chat');
+            const messageText = input.value.trim();
+
+            // Append user bubble
+            chatContainer.innerHTML += `
+                <div class="flex gap-4 justify-end items-start animate-fade-in-up">
+                    <div class="max-w-[80%] p-5 rounded-3xl bg-accent text-[#1e293b] shadow-xl">
+                        <p class="text-[9px] font-bold uppercase mb-1">You</p>
+                        <p class="text-sm leading-relaxed">${escapeHTML(messageText)}</p>
+                    </div>
+                </div>`;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            input.value = '';
+
+            // Show thinking indicator
+            const thinkingId = 'play-thinking-' + Date.now();
+            chatContainer.innerHTML += `
+                <div id="${thinkingId}" class="flex gap-4 items-start animate-fade-in-up">
+                    <div class="w-10 h-10 rounded-full bg-nexus-elevated border border-accent animate-pulse"></div>
+                    <div class="nexus-thinking-indicator mt-3">
+                        <span>Agent Reasoning</span>
+                        <div class="thinking-dot"></div><div class="thinking-dot"></div><div class="thinking-dot"></div>
+                    </div>
+                </div>`;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            nexusFetch('conversations', 'POST', {
+                conversation_id: currentConversationId,
+                employee_id: agentId,
+                message: messageText
+            }).then(res => {
+                document.getElementById(thinkingId)?.remove();
+                if (res.conversation_id) {
+                    currentConversationId = res.conversation_id;
+                }
+                // Append AI bubble
+                const bubble = `
+                    <div class="flex gap-4 items-start animate-fade-in-up">
+                        <div class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-bold text-[#1e293b] bg-accent shadow-xl">AI</div>
+                        <div class="flex-1 p-5 bg-[#f8fafc]/5 rounded-3xl border border-nexus-border/50 shadow-2xl">
+                            <p class="text-[9px] text-gray-500 font-bold uppercase mb-1 tracking-widest">Agent Response</p>
+                            <p class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">${escapeHTML(res.response)}</p>
+                        </div>
+                    </div>`;
+                chatContainer.innerHTML += bubble;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+        });
+    }
 });
