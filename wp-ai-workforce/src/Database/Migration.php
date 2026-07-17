@@ -167,5 +167,22 @@ class Migration {
 		foreach ( $tables as $sql ) {
 			dbDelta( $sql );
 		}
+
+		// Bulletproof self-healing column check & addition fallback
+		$table_name = $wpdb->prefix . 'ai_employees';
+		$columns = $wpdb->get_col( "DESCRIBE {$table_name}" );
+		if ( ! empty( $columns ) ) {
+			$missing_columns = [
+				'thinking_process' => 'TEXT',
+				'output_format'    => 'TEXT',
+				'negative_prompts' => 'TEXT',
+				'examples'         => 'TEXT',
+			];
+			foreach ( $missing_columns as $col => $type ) {
+				if ( ! in_array( $col, $columns, true ) ) {
+					$wpdb->query( "ALTER TABLE {$table_name} ADD COLUMN {$col} {$type}" );
+				}
+			}
+		}
 	}
 }

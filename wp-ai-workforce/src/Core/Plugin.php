@@ -17,8 +17,11 @@ class Plugin {
 		$this->register_hooks();
 		$this->init_components();
 		// Ensure database columns exist (self-healing migration)
-		if ( class_exists( 'NexusAI\\Workforce\\Database\\Migration' ) ) {
-			\NexusAI\Workforce\Database\Migration::run();
+		if ( is_admin() && ! get_option( 'nexus_ai_workforce_db_migrated_v2' ) ) {
+			if ( class_exists( 'NexusAI\\Workforce\\Database\\Migration' ) ) {
+				\NexusAI\Workforce\Database\Migration::run();
+				update_option( 'nexus_ai_workforce_db_migrated_v2', true );
+			}
 		}
 	}
 
