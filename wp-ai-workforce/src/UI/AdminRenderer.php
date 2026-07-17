@@ -540,10 +540,21 @@ class AdminRenderer {
 							<div>
 								<label class="block text-sm font-medium text-gray-400 mb-2">AI Model</label>
 								<select name="model" class="w-full bg-nexus-elevated border border-nexus-border rounded-lg p-3 text-[#1e293b]">
-									<option value="gpt-4o">GPT-4o (Recommended)</option>
-									<option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</option>
-									<option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-									<option value="openrouter/meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B (OpenRouter)</option>
+									<optgroup label="High Reasoning">
+										<option value="gpt-4o">OpenAI GPT-4o (Standard)</option>
+										<option value="claude-3-5-sonnet-20240620">Anthropic Claude 3.5 Sonnet</option>
+										<option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+									</optgroup>
+									<optgroup label="High Volume / Fast">
+										<option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
+										<option value="gemini-1.5-flash">Google Gemini 1.5 Flash</option>
+										<option value="gemini-3-flash">Google Gemini 3 Flash (BETA)</option>
+									</optgroup>
+									<optgroup label="OpenRouter / Open Source">
+										<option value="meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B (via OpenRouter)</option>
+										<option value="mistralai/mistral-large">Mistral Large</option>
+										<option value="x-ai/grok-1">xAI Grok-1</option>
+									</optgroup>
 								</select>
 							</div>
 							<div>
