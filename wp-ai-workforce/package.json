@@ -1,0 +1,23 @@
+{
+  "name": "@nexus-ai/workforce",
+  "version": "1.0.0",
+  "description": "Enterprise AI Workforce Platform for WordPress",
+  "main": "src/UI/Dashboard.js",
+  "scripts": {
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development --watch"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "lucide-react": "^0.263.1",
+    "framer-motion": "^10.15.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.3.3",
+    "autoprefixer": "^10.4.15",
+    "postcss": "^8.4.28",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
+  }
+}
