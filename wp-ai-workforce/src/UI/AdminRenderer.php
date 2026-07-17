@@ -658,7 +658,7 @@ class AdminRenderer {
 				</div>
 			</div>
 
-			<form id="nexus-settings-form" class="max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-10">
+			<form id="nexus-settings-form" method="POST" class="max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-10">
 				<div class="glass-panel p-8 rounded-2xl border border-nexus-border space-y-6">
 					<h2 class="text-xl font-semibold mb-6 text-accent">Global AI Engines</h2>
 						<div>
@@ -1096,7 +1096,7 @@ class AdminRenderer {
 							<div class="flex gap-4">
 								<button id="nexus-clear-canvas" class="text-gray-400 hover:text-red-500 bg-[#f8fafc]/5 px-6 py-2 rounded-xl text-xs font-bold transition-all">Clear Canvas</button>
 								<button id="nexus-save-workflow-btn" class="bg-accent text-[#1e293b] px-8 py-3 rounded-xl font-bold hover:opacity-90 transition-all nexus-btn-vibrant">Save Workflow</button>
-								<button id="nexus-close-builder" class="text-gray-400 hover:text-[#1e293b] bg-nexus-elevated px-4 rounded-xl">✕</button>
+								<button id="nexus-close-builder" class="text-gray-400 hover:text-red-500 bg-[#f8fafc]/5 px-6 py-2 rounded-xl text-xs font-bold transition-all border border-white/10">Exit Builder</button>
 							</div>
 						</div>
 						<div id="nexus-workflow-canvas" class="flex-1 border-4 border-dashed border-nexus-border rounded-3xl flex items-center justify-center relative bg-black/20">
